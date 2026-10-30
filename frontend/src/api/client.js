@@ -1,11 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const TOKEN_KEY = 'auth_token';
+import { auth } from '../firebase.js';
 
-export const tokenStore = {
-  get: () => localStorage.getItem(TOKEN_KEY),
-  set: (token) => localStorage.setItem(TOKEN_KEY, token),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
-};
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export class ApiError extends Error {
   constructor(message, status) {
@@ -23,7 +18,8 @@ function errorMessage(body) {
 
 export async function api(path, { method = 'GET', body } = {}) {
   const headers = { 'Content-Type': 'application/json' };
-  const token = tokenStore.get();
+  // Firebase ID token (JWT); the SDK refreshes it automatically before it expires.
+  const token = await auth.currentUser?.getIdToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${path}`, {

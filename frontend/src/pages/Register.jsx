@@ -45,11 +45,11 @@ export default function Register() {
         </label>
         <label>
           Password
-          <input type="password" name="password" value={form.password} onChange={onChange} minLength={8} required />
+          <input type="password" name="password" value={form.password} onChange={onChange} minLength={6} required />
         </label>
         <label>
           Confirm password
-          <input type="password" name="confirm" value={form.confirm} onChange={onChange} minLength={8} required />
+          <input type="password" name="confirm" value={form.confirm} onChange={onChange} minLength={6} required />
         </label>
         {error && <p className="error">{error}</p>}
         <button className="btn btn-block" disabled={submitting}>

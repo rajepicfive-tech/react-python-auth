@@ -63,6 +63,7 @@ input:focus { outline: 2px solid var(--primary); border-color: transparent; }
 .btn-block { width: 100%; padding: 12px; }
 .btn-outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
 .btn-outline:hover { background: var(--primary); color: #fff; }
+.google-btn { margin-top: 12px; }
 
 .muted { color: var(--muted); }
 .error { color: var(--error); margin: 0; font-size: 0.9rem; }

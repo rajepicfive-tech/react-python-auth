@@ -3,4 +3,5 @@ dist/
 .venv/
 __pycache__/
 *.db
+*.db.bak
 .env

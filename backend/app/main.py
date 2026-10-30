@@ -5,9 +5,10 @@ from . import auth
 from .config import FRONTEND_ORIGIN
 from .database import Base, engine
 from .models import User
-from .security import get_current_user
+from .security import get_current_user, init_firebase
 
 Base.metadata.create_all(bind=engine)
+init_firebase()
 
 app = FastAPI(title="Sample Auth API")
 
