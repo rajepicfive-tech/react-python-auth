@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Login() {
-  const { user, login, loginWithGoogle } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState({ email: '', password: '' });
@@ -15,22 +15,18 @@ export default function Login() {
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const run = async (signIn) => {
+  const onSubmit = async (e) => {
+    e.preventDefault();
     setError('');
     setSubmitting(true);
     try {
-      await signIn();
+      await login(form.email, form.password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const onSubmit = (e) => {
-    e.preventDefault();
-    run(() => login(form.email, form.password));
   };
 
   return (
@@ -50,9 +46,6 @@ export default function Login() {
           {submitting ? 'Logging in…' : 'Log in'}
         </button>
       </form>
-      <button className="btn btn-outline btn-block google-btn" onClick={() => run(loginWithGoogle)} disabled={submitting}>
-        Continue with Google
-      </button>
       <p className="muted">
         No account? <Link to="/register">Sign up</Link>
       </p>

@@ -1,79 +1,49 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
-  updateProfile,
-} from 'firebase/auth';
-import { api } from '../api/client.js';
-import { auth, firebaseErrorMessage, googleProvider } from '../firebase.js';
+import { api, tokenStore } from '../api/client.js';
 
 const AuthContext = createContext(null);
-
-// Re-throw Firebase errors with a readable message for the forms.
-const withMessage = (fn) => async (...args) => {
-  try {
-    return await fn(...args);
-  } catch (err) {
-    throw new Error(firebaseErrorMessage(err));
-  }
-};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = useCallback(async () => {
-    try {
-      setUser(await api('/api/auth/me'));
-    } catch {
-      setUser(null);
+  // On first load, restore the session from stored tokens.
+  useEffect(() => {
+    if (!tokenStore.get()) {
+      setLoading(false);
+      return;
     }
+    api('/api/auth/me')
+      .then(setUser)
+      .catch(() => tokenStore.clear())
+      .finally(() => setLoading(false));
   }, []);
 
-  // Firebase restores the session on reload; load the backend profile whenever it changes.
-  useEffect(
-    () =>
-      onAuthStateChanged(auth, async (fbUser) => {
-        if (fbUser) await loadProfile();
-        else setUser(null);
-        setLoading(false);
-      }),
-    [loadProfile]
-  );
+  const handleAuth = (data) => {
+    tokenStore.set(data);
+    setUser(data.user);
+  };
 
-  const login = useCallback(
-    withMessage(async (email, password) => {
-      await signInWithEmailAndPassword(auth, email, password);
-      await loadProfile();
-    }),
-    [loadProfile]
-  );
+  const login = useCallback(async (email, password) => {
+    handleAuth(await api('/api/auth/login', { method: 'POST', body: { email, password } }));
+  }, []);
 
-  const loginWithGoogle = useCallback(
-    withMessage(async () => {
-      await signInWithPopup(auth, googleProvider);
-      await loadProfile();
-    }),
-    [loadProfile]
-  );
+  const register = useCallback(async (fullName, email, password) => {
+    handleAuth(
+      await api('/api/auth/register', {
+        method: 'POST',
+        body: { full_name: fullName, email, password },
+      })
+    );
+  }, []);
 
-  const register = useCallback(
-    withMessage(async (fullName, email, password) => {
-      const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(fbUser, { displayName: fullName.trim() });
-      await fbUser.getIdToken(true); // refresh so the JWT carries the new `name` claim
-      await loadProfile();
-    }),
-    [loadProfile]
-  );
-
-  const logout = useCallback(() => signOut(auth), []);
+  const logout = useCallback(() => {
+    tokenStore.clear();
+    setUser(null);
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -41,8 +41,11 @@ def get_current_user(
         claims = verify_firebase_token(credentials.credentials)
     except (ValueError, firebase_auth.InvalidIdTokenError, firebase_auth.CertificateFetchError):
         raise unauthorized
+    return sync_user(db, claims)
 
-    # Create the local profile on first sight, and keep it in sync with Firebase.
+
+def sync_user(db: Session, claims: dict) -> User:
+    """Create the local profile on first sight, and keep it in sync with Firebase."""
     email = claims.get("email", "")
     name = (claims.get("name") or "").strip() or email.split("@")[0]
     user = db.scalar(select(User).where(User.firebase_uid == claims["uid"]))
