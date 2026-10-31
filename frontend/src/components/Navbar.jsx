@@ -16,6 +16,8 @@ export default function Navbar() {
       <div className="nav-links">
         {user ? (
           <>
+            <Link to="/dashboard">Dashboard</Link>
+            <Link to="/session">Tokens</Link>
             <span className="muted">{user.email}</span>
             <button className="btn btn-outline" onClick={handleLogout}>Log out</button>
           </>

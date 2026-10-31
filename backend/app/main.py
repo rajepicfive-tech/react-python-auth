@@ -1,7 +1,7 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import auth
+from . import auth, sessions
 from .config import FRONTEND_ORIGIN
 from .models import User
 from .security import get_current_user
@@ -19,6 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(sessions.router)
 
 
 @app.get("/api/health")
