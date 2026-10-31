@@ -1,19 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const ACCESS_KEY = 'access_token';
-const REFRESH_KEY = 'refresh_token';
-
-export const tokenStore = {
-  get: () => localStorage.getItem(ACCESS_KEY),
-  getRefresh: () => localStorage.getItem(REFRESH_KEY),
-  set: ({ access_token, refresh_token }) => {
-    localStorage.setItem(ACCESS_KEY, access_token);
-    localStorage.setItem(REFRESH_KEY, refresh_token);
-  },
-  clear: () => {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
-  },
-};
+// Auth tokens live in httpOnly cookies that JavaScript can't read; the browser sends them automatically.
+const UNSAFE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
+const NO_REFRESH_PATHS = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh', '/api/auth/logout'];
 
 export class ApiError extends Error {
   constructor(message, status) {
@@ -29,36 +16,35 @@ function errorMessage(body) {
   return body.detail.map((d) => `${d.loc.at(-1)}: ${d.msg}`).join(', ');
 }
 
-async function request(path, { method = 'GET', body } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-  const token = tokenStore.get();
-  if (token) headers.Authorization = `Bearer ${token}`;
+function getCookie(name) {
+  return document.cookie
+    .split('; ')
+    .find((c) => c.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+}
 
-  const res = await fetch(`${API_URL}${path}`, {
+async function request(path, { method = 'GET', body } = {}) {
+  const headers = {};
+  if (body) headers['Content-Type'] = 'application/json';
+  const csrf = getCookie('csrf_token');
+  if (csrf && UNSAFE_METHODS.includes(method)) headers['X-CSRF-Token'] = csrf;
+
+  const res = await fetch(path, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    credentials: 'include',
   });
-  const data = await res.json().catch(() => null);
+  const data = res.status === 204 ? null : await res.json().catch(() => null);
   return { res, data };
 }
 
 // Share one refresh call between requests that hit a 401 at the same time.
 let refreshing = null;
 
-function refreshTokens() {
-  refreshing ??= request('/api/auth/refresh', {
-    method: 'POST',
-    body: { refresh_token: tokenStore.getRefresh() },
-  })
-    .then(({ res, data }) => {
-      if (!res.ok) throw new ApiError(errorMessage(data), res.status);
-      tokenStore.set(data);
-    })
-    .catch((err) => {
-      tokenStore.clear();
-      throw err;
-    })
+function refreshSession() {
+  refreshing ??= request('/api/auth/refresh', { method: 'POST' })
+    .then(({ res }) => res.ok)
     .finally(() => {
       refreshing = null;
     });
@@ -68,9 +54,8 @@ function refreshTokens() {
 export async function api(path, options) {
   let { res, data } = await request(path, options);
 
-  // The Firebase ID token lasts 1 hour; renew it once and retry.
-  if (res.status === 401 && tokenStore.getRefresh() && !path.startsWith('/api/auth/')) {
-    await refreshTokens();
+  // Access token (15 min) expired: get a new one with the refresh token cookie, then retry once.
+  if (res.status === 401 && !NO_REFRESH_PATHS.includes(path) && (await refreshSession())) {
     ({ res, data } = await request(path, options));
   }
 

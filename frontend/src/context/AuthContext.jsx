@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { api, tokenStore } from '../api/client.js';
+import { api } from '../api/client.js';
 
 const AuthContext = createContext(null);
 
@@ -7,29 +7,20 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // On first load, restore the session from stored tokens.
+  // On first load, ask the backend who we are; the auth cookies are sent automatically.
   useEffect(() => {
-    if (!tokenStore.get()) {
-      setLoading(false);
-      return;
-    }
     api('/api/auth/me')
       .then(setUser)
-      .catch(() => tokenStore.clear())
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
-  const handleAuth = (data) => {
-    tokenStore.set(data);
-    setUser(data.user);
-  };
-
   const login = useCallback(async (email, password) => {
-    handleAuth(await api('/api/auth/login', { method: 'POST', body: { email, password } }));
+    setUser(await api('/api/auth/login', { method: 'POST', body: { email, password } }));
   }, []);
 
   const register = useCallback(async (fullName, email, password) => {
-    handleAuth(
+    setUser(
       await api('/api/auth/register', {
         method: 'POST',
         body: { full_name: fullName, email, password },
@@ -37,8 +28,8 @@ export function AuthProvider({ children }) {
     );
   }, []);
 
-  const logout = useCallback(() => {
-    tokenStore.clear();
+  const logout = useCallback(async () => {
+    await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
     setUser(null);
   }, []);
 

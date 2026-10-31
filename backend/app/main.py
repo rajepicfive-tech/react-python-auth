@@ -3,21 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import auth
 from .config import FRONTEND_ORIGIN
-from .database import Base, engine
 from .models import User
-from .security import get_current_user, init_firebase
+from .security import get_current_user
 
-Base.metadata.create_all(bind=engine)
-init_firebase()
-
+# Schema is managed by Alembic: run `alembic upgrade head` before starting the app.
 app = FastAPI(title="Sample Auth API")
 
+# Only needed if the frontend is served from a different origin than the API.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_ORIGIN],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "X-CSRF-Token"],
 )
 
 app.include_router(auth.router)
